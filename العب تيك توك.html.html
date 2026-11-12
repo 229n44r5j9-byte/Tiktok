@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لعبة التخمين</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Tahoma,sans-serif}
+body{background:#0e0e12;color:#e8e8ee;display:flex;justify-content:center;align-items:center;height:100vh;height:100dvh}
+.container{background:#17171d;width:100%;max-width:480px;height:100%;max-height:900px;display:flex;flex-direction:column;overflow:hidden;position:relative;border:1px solid #2a2a35}
+.hide{display:none!important}
+button{cursor:pointer;border:none;font-weight:bold;color:#fff;border-radius:10px;font-size:13px;padding:8px 12px}
+#login{display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;padding:28px;text-align:center}
+#login h2{color:#3d9bff;font-size:28px;margin-bottom:6px}
+.badge{font-size:12px;color:#00ffcc;background:#1a2a26;padding:4px 12px;border-radius:20px;margin-bottom:22px;border:1px solid #00ffcc33}
+input[type=text]{width:100%;padding:13px;background:#25252e;border:2px solid #34343f;border-radius:12px;outline:none;font-size:16px;text-align:center;color:#fff}
+input[type=text]:focus{border-color:#3d9bff}
+.modes{display:flex;gap:10px;width:100%;margin:14px 0}
+.mode{flex:1;background:#25252e;border:2px solid #34343f;color:#aaa;padding:12px;font-size:14px}
+.mode.on{background:#0084ff33;border-color:#3d9bff;color:#fff}
+.big{background:#0084ff;width:100%;padding:14px;font-size:16px;border-radius:12px}
+.big:disabled{background:#444;color:#999}
+#game{display:none;flex-direction:column;height:100%}
+.hd{background:#13131a;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a2a35;gap:8px}
+#title{font-size:15px;font-weight:bold;color:#3d9bff}
+.sig{font-size:10px;color:#777}
+.hd .b{background:#2c2c38}.hd .r{background:#dc3545}
+.info{display:flex;align-items:center;gap:12px;padding:8px 12px;background:#1c1c25;border-bottom:1px solid #2a2a35}
+#turn{flex:1;font-size:13px;font-weight:bold}
+.me-img{width:64px;height:64px;border-radius:10px;object-fit:cover;border:2px solid #3d9bff}
+#reveal{display:none;align-items:center;gap:8px;font-size:12px;color:#ffcc00}
+#reveal img{width:64px;height:64px;border-radius:10px;object-fit:cover;border:2px solid #ffcc00}
+#callbar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:#1a2230;border-bottom:1px solid #2a2a35;font-size:12px}
+#callbar span{flex:1}
+#call-btn,#acc-btn{background:#1fa855}#end-call-btn{background:#dc3545}#mute-btn{background:#444}
+#callbar.live{background:#12301f;animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.75}}
+#chat{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:82%;padding:9px 13px;border-radius:14px;font-size:14px;line-height:1.5;word-break:break-word}
+.me{align-self:flex-start;background:#0084ff;border-bottom-right-radius:3px}
+.other{align-self:flex-end;background:#2c2c38;border-bottom-left-radius:3px}
+.sys{align-self:center;background:#3a331a;color:#ffd24d;text-align:center;font-weight:bold}
+.msg audio{display:block;margin-top:6px;max-width:100%;height:34px}
+#typing{display:none;padding:2px 14px;font-size:12px;color:#888}
+.quick{display:flex;gap:6px;padding:6px 10px;overflow-x:auto;background:#13131a}
+.quick button{background:#25252e;white-space:nowrap;font-size:13px}
+.inp{display:flex;gap:8px;padding:10px;background:#13131a;align-items:center}
+.inp input{flex:1;padding:12px;font-size:15px;text-align:right}
+.send{background:#0084ff;padding:12px 16px}
+#vc{display:none;width:100%;gap:8px;align-items:center}
+#mic{flex:1;background:#0084ff;padding:13px}#mic.rec{background:#dc3545;animation:pulse 1s infinite}
+#stop{background:#1fa855;display:none;padding:13px}
+#vt{color:#ff6b6b;font-weight:bold;display:none}
+#again{background:#1fa855;margin:8px 12px;padding:12px;font-size:15px;display:none}
+#board{position:absolute;inset:0;background:#0e0e12f5;display:none;flex-direction:column;z-index:10}
+#board .bh{display:flex;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #2a2a35}
+#board .bh span{flex:1;font-size:12px;color:#aaa}
+#grid{flex:1;overflow-y:auto;padding:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;align-content:start}
+#grid.guess{outline:3px solid #dc3545;outline-offset:-3px}
+.cell{aspect-ratio:1;border-radius:8px;overflow:hidden;position:relative;border:2px solid transparent;background:#222}
+.cell img{width:100%;height:100%;object-fit:cover}
+.cell.out{opacity:.2}.cell.out::after{content:'✖';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px;color:#ff4d4d}
+.cell.mine{border-color:#3d9bff;opacity:.5}
+</style>
+</head>
+<body>
+<div class="container">
+ <div id="login">
+  <h2>لعبة التخمين 🎯</h2>
+  <div class="badge">تطوير وإشراف: أحمد إبراهيم</div>
+  <input type="text" id="username" placeholder="اكتب اسمك هنا..." maxlength="15">
+  <div class="modes">
+   <button class="mode on" id="m-text" onclick="selMode('text')">⌨️ شات</button>
+   <button class="mode" id="m-voice" onclick="selMode('voice')">🎙️ رسائل صوتية</button>
+  </div>
+  <button class="big" id="start" onclick="joinGame()">دخول واستعداد</button>
+  <p id="wait" class="hide" style="margin-top:18px;color:#888;font-size:14px">جاري الاتصال...</p>
+ </div>
+
+ <div id="game">
+  <div class="hd">
+   <div><div id="title">لعبة التخمين</div><div class="sig">بواسطة أحمد إبراهيم</div></div>
+   <div style="display:flex;gap:6px">
+    <button class="b" onclick="toggleBoard(true)">🧩 اللوحة</button>
+    <button class="r" onclick="resetGame()">خروج ↩</button>
+   </div>
+  </div>
+  <div class="info">
+   <div id="turn">...</div>
+   <img id="my-img" class="me-img" alt="">
+   <div id="reveal"><span id="reveal-t"></span><img id="opp-img" alt=""></div>
+  </div>
+  <div id="callbar">
+   <span id="call-st">📞 مكالمة لايف</span>
+   <button id="call-btn" onclick="startCall()">اتصل</button>
+   <button id="acc-btn" class="hide" onclick="acceptCall()">رد ✅</button>
+   <button id="mute-btn" class="hide" onclick="toggleMute()">🎤</button>
+   <button id="end-call-btn" class="hide" onclick="endCall(true)">إنهاء</button>
+  </div>
+  <div id="chat"></div>
+  <div id="typing"></div>
+  <button id="again" onclick="rematch()">🔄 جولة جديدة</button>
+  <div class="quick" id="quick">
+   <button onclick="quick('✅ أيوه')">✅ أيوه</button>
+   <button onclick="quick('❌ لأ')">❌ لأ</button>
+   <button onclick="quick('🤷 ممكن')">🤷 ممكن</button>
+   <button onclick="quick('🔥 سخّن')">🔥 سخّن</button>
+   <button onclick="quick('🧊 برّد')">🧊 برّد</button>
+  </div>
+  <div class="inp">
+   <div id="tc" style="display:flex;width:100%;gap:8px">
+    <input type="text" id="msg" placeholder="اسأل سؤالك أو اكتب تلميح..." onkeypress="if(event.key==='Enter')sendMsg()" oninput="typing()">
+    <button class="send" id="send" onclick="sendMsg()">إرسال</button>
+   </div>
+   <div id="vc">
+    <span id="vt">30s</span>
+    <button id="mic" onclick="startRec()">🎙️ سجّل سؤالك (30 ثانية)</button>
+    <button id="stop" onclick="stopRec()">تم ✅</button>
+   </div>
+  </div>
+
+  <div id="board">
+   <div class="bh">
+    <button style="background:#2c2c38" onclick="toggleBoard(false)">✕ إغلاق</button>
+    <span id="bhint">اضغط على أي صورة لاستبعادها ✖</span>
+    <button id="gbtn" style="background:#dc3545" onclick="toggleGuess()">🎯 تخمين</button>
+   </div>
+   <div id="grid"></div>
+  </div>
+ </div>
+ <audio id="remote-audio" autoplay playsinline></audio>
+</div>
+
+<script>
+firebase.initializeApp({databaseURL:"https://chat-ahmed-cb516-default-rtdb.firebaseio.com/"});
+var db=firebase.database(),gameRef=db.ref('guessing_game/'),callRef=db.ref('guessing_call/');
+var msgSound=new Audio("https://files.catbox.moe/afc3sx.mp3");
+var P="https://i.ibb.co/";
+var IM=("Cpb2mxgx/IMG-1758 gbFxbcM5/IMG-1759 0yS45PNL/IMG-1760 bMZnxgvL/IMG-1761 hRfqZnR4/IMG-1762 gbHLHn6M/IMG-1763 1Gy8THZs/IMG-1764 XktpNNJp/IMG-1766 DfRpBvsB/IMG-1767 9kmRggmV/IMG-1768 3m5F2y9B/IMG-1769 whRhjgz4/IMG-1770 tTjDRWzK/IMG-1771 NdsyfQZn/IMG-1772 hJYzH96L/IMG-1773 sv6HK3Hg/IMG-1774 WW96C4NT/IMG-1776 mnhc8xq/IMG-1777 svd1N0pW/IMG-1778 nq9Fgfbf/IMG-1779 S4cWdzKz/IMG-1780 8LBJ7zwh/IMG-1781 NgNvhhpC/IMG-1782 SC153gx/IMG-1783 spnnJswT/IMG-1784 TMj21Zyq/IMG-1786 QjTv3WfG/IMG-1787 LXckQm1y/IMG-1723 ZR26sFr2/IMG-0651 mCLWVVPr/IMG-1794 Pz0ZQVZC/IMG-1795 xqD9fT5X/IMG-1796 jkbc0vDy/IMG-1797 F49wjYMD/IMG-1798 3yrrkzdH/IMG-1799 mYK1xn8/IMG-1800 YBKBQDwd/IMG-1801 VpzbzYGk/IMG-1802 Lzp7gMdj/IMG-1805 qLZJzyW8/IMG-1804 WWCNP3hY/IMG-1803 qM85nhxz/IMG-1808 5hBRnbZJ/IMG-1807 8gJsTjLZ/IMG-1806 XZQtYGkS/IMG-1811 LXXGtKmC/IMG-1810 nsfbcvBS/IMG-1809 yFBBXkrg/IMG-1839 5XqLvJ45/IMG-1838 v4BKRhdD/IMG-1837 wFFxpyyN/IMG-1836 svWdK7qM/IMG-1835 GfFgkk77/IMG-1834 gqxzWgp/IMG-1833 0jsG6HyL/IMG-1832 XZCkGBXy/IMG-1831 6JnKgwyN/IMG-1830 6Rj2sSnc/IMG-1829 wN8ns9nj/IMG-1828 9MkKwFx/IMG-1827 DgGtVSB0/IMG-1826 DH6Gmv8t/IMG-1825 qFdk5Sjz/IMG-1824 HLxShgkR/IMG-1823 v4jZfdT0/IMG-1822 CpX8V15n/IMG-1821 PvKQDqb0/IMG-1820 Q7bjjG2d/IMG-1819 VWN18GjV/IMG-1818 7JD68sKc/IMG-1817 WNszP9RL/IMG-1816 Z1gTY9kY/IMG-1814 xK026gN9/IMG-1813 N0kRrkR/IMG-1812").split(" ");
+function url(i){return P+IM[i]+".jpg"}
+function $(id){return document.getElementById(id)}
+function rnd(){return Math.floor(Math.random()*IM.length)}
+
+var myName="",myRole="",mode="text",G={},listening=false,rendered={},firstRender=true,wasEnded=false,boardBuilt=false,crossed={},guessMode=false,typT;
+
+function selMode(m){mode=m;$('m-text').classList.toggle('on',m==='text');$('m-voice').classList.toggle('on',m==='voice')}
+
+function joinGame(){
+ var n=$('username').value.trim();
+ if(!n){alert("اكتب اسمك الأول!");return}
+ myName=n;$('start').disabled=true;$('wait').classList.remove('hide');
+ msgSound.play().then(function(){msgSound.pause();msgSound.currentTime=0}).catch(function(){});
+ if(mode==='voice')navigator.mediaDevices.getUserMedia({audio:true}).catch(function(){alert("فعّل إذن المايك من المتصفح")});
+ gameRef.once('value').then(function(s){
+  var d=s.val(),a=rnd();
+  if(!d||!d.player1||d.status==="resetting"){
+   myRole="player1";callRef.remove();
+   gameRef.set({player1:{name:myName,imageIndex:a,typing:false,mode:mode},status:"waiting",turn:"player1"}).then(function(){
+    $('wait').innerText="تم تسجيلك لاعب أول. بانتظار الطرف الآخر...";listen()});
+  }else if(!d.player2||d.player2.name===myName){
+   myRole="player2";
+   while(a===d.player1.imageIndex)a=rnd();
+   gameRef.update({player2:{name:myName,imageIndex:a,typing:false,mode:mode},status:"playing"}).then(listen);
+  }else{
+   gameRef.remove().then(function(){$('start').disabled=false;$('wait').classList.add('hide');alert("اتنضفت الغرفة القديمة، اضغط دخول تاني.")});
+  }
+ });
+}
+
+function listen(){
+ if(listening)return;listening=true;
+ callRef.on('value',onCall);
+ gameRef.on('value',function(s){
+  var d=s.val();
+  if(!d||d.status==="resetting"){backToLogin();return}
+  G=d;
+  if(d.status==="playing"&&d.player1&&d.player2){
+   if(wasEnded)newRoundUI();
+   $('login').style.display="none";$('game').style.display="flex";
+   var me=d[myRole],opp=d[myRole==="player1"?"player2":"player1"];
+   $('my-img').src=url(me.imageIndex);
+   $('turn').style.color="#e8e8ee";
+   $('turn').innerText=d.turn===myRole?"دورك الآن 🟢":"دور "+opp.name+" 🟡";
+   $('title').innerText=d.player1.name+" 🆚 "+d.player2.name;
+   var v=me.mode==="voice";
+   $('tc').style.display=v?"none":"flex";$('vc').style.display=v?"flex":"none";
+   if(!boardBuilt)buildBoard();
+   markMine(me.imageIndex);
+   if(opp.typing&&opp.mode==="text"){$('typing').innerText=opp.name+" بيكتب الآن... 💬";$('typing').style.display="block"}
+   else $('typing').style.display="none";
+  }
+  renderMsgs(d.messages);
+  if(d.status==="ended"&&d.winner)endUI(d);
+ });
+}
+
+function renderMsgs(m){
+ var box=$('chat');
+ if(!m){box.innerHTML="";rendered={};return}
+ var fresh=false;
+ Object.keys(m).sort().forEach(function(k){
+  if(rendered[k])return;rendered[k]=1;
+  var x=m[k],d=document.createElement('div');
+  d.className="msg "+(x.sender==="system"?"sys":x.sender===myName?"me":"other");
+  if(x.sender!=="system"&&x.sender!==myName)fresh=true;
+  if(x.type==="voice"){
+   var b=document.createElement('b');b.textContent=x.sender+" 🎙️";d.appendChild(b);
+   var a=document.createElement('audio');a.src=x.audioData;a.controls=true;d.appendChild(a);
+  }else d.textContent=x.sender==="system"?x.text:x.sender+": "+x.text;
+  box.appendChild(d);
+ });
+ if(fresh&&!firstRender)msgSound.play().catch(function(){});
+ firstRender=false;box.scrollTop=box.scrollHeight;
+}
+
+function endUI(d){
+ wasEnded=true;
+ $('msg').disabled=true;$('mic').disabled=true;$('quick').classList.add('hide');$('again').style.display="block";
+ $('typing').style.display="none";toggleBoard(false);
+ $('turn').style.color="#00ffcc";$('turn').innerText="🎉 الفايز: "+d.winner;
+ var o=d[myRole==="player1"?"player2":"player1"];
+ $('reveal-t').innerText="صورة "+o.name+" كانت:";$('opp-img').src=url(o.imageIndex);$('reveal').style.display="flex";
+}
+function newRoundUI(){
+ wasEnded=false;$('msg').disabled=false;$('mic').disabled=false;$('quick').classList.remove('hide');
+ $('again').style.display="none";$('reveal').style.display="none";
+ crossed={};guessMode=false;
+ document.querySelectorAll('.cell').forEach(function(c){c.classList.remove('out')});
+ rendered={};firstRender=true;
+}
+function rematch(){
+ var a=rnd(),b;do{b=rnd()}while(b===a);
+ var loser=G.winner===G.player1.name?"player2":"player1";
+ gameRef.update({'player1/imageIndex':a,'player2/imageIndex':b,status:"playing",winner:null,messages:null,turn:loser});
+}
+function backToLogin(){
+ endCall(false);
+ G={};myRole="";rendered={};firstRender=true;wasEnded=false;crossed={};guessMode=false;
+ $('game').style.display="none";$('login').style.display="flex";
+ $('start').disabled=false;$('wait').classList.add('hide');
+ $('msg').disabled=false;$('mic').disabled=false;$('quick').classList.remove('hide');
+ $('again').style.display="none";$('reveal').style.display="none";toggleBoard(false);
+}
+function resetGame(){
+ if(confirm("إنهاء الجيم وحذف كل حاجة؟")){endCall(true);gameRef.set({status:"resetting"}).then(function(){gameRef.remove()})}
+}
+
+/* ============ لوحة الاستبعاد + التخمين ============ */
+function buildBoard(){
+ boardBuilt=true;var g=$('grid');g.innerHTML="";
+ IM.forEach(function(_,i){
+  var c=document.createElement('div');c.className="cell";c.id="c"+i;
+  var im=document.createElement('img');im.loading="lazy";im.src=url(i);c.appendChild(im);
+  c.onclick=function(){cellTap(i)};g.appendChild(c);
+ });
+}
+function markMine(idx){
+ document.querySelectorAll('.cell.mine').forEach(function(c){c.classList.remove('mine')});
+ var c=$('c'+idx);if(c)c.classList.add('mine');
+}
+function toggleBoard(on){$('board').style.display=on?"flex":"none";if(!on)setGuess(false)}
+function toggleGuess(){setGuess(!guessMode)}
+function setGuess(v){
+ guessMode=v;$('grid').classList.toggle('guess',v);
+ $('gbtn').innerText=v?"إلغاء التخمين":"🎯 تخمين";
+ $('bhint').innerText=v?"اختار الصورة اللي فاكر إنها عند الخصم (لو غلط هتخسر!)":"اضغط على أي صورة لاستبعادها ✖";
+}
+function cellTap(i){
+ if(G.status!=="playing")return;
+ if(guessMode){
+  if(G.turn!==myRole){alert("مش دورك!");return}
+  if(i===G[myRole].imageIndex)return;
+  if(confirm("متأكد إن دي صورة الخصم؟ لو غلط هتخسر!"))doGuess(i);
+  return;
+ }
+ if(i===G[myRole].imageIndex)return;
+ crossed[i]=!crossed[i];$('c'+i).classList.toggle('out',!!crossed[i]);
+}
+function doGuess(i){
+ var opp=G[myRole==="player1"?"player2":"player1"],ok=opp.imageIndex===i;
+ var winner=ok?myName:opp.name,k=Date.now(),u={};
+ u.status="ended";u.winner=winner;
+ u['messages/'+k]={sender:myName,type:"text",text:"🎯 خمّنت الصورة رقم "+(i+1)};
+ u['messages/'+(k+1)]={sender:"system",type:"text",text:ok?"✅ تخمين صح! "+myName+" كسب 🏆":"❌ تخمين غلط! "+opp.name+" هو الفايز 🏆"};
+ gameRef.update(u);
+}
+
+/* ============ الشات والرسائل ============ */
+function typing(){
+ if(!myRole||G.status!=="playing")return;
+ var r=db.ref('guessing_game/'+myRole+'/typing');r.set(true);
+ clearTimeout(typT);typT=setTimeout(function(){r.set(false)},1500);
+}
+function sendMsg(){
+ var t=$('msg').value.trim();if(!t)return;
+ if(G.turn!==myRole){alert("مش دورك! استنى الطرف التاني.");return}
+ db.ref('guessing_game/'+myRole+'/typing').set(false);
+ var k=Date.now(),u={};
+ u['messages/'+k]={sender:myName,type:"text",text:t};
+ u.turn=myRole==="player1"?"player2":"player1";
+ msgSound.play().catch(function(){});gameRef.update(u);$('msg').value="";
+}
+function quick(t){
+ if(G.status!=="playing")return;
+ var u={};u['messages/'+Date.now()]={sender:myName,type:"text",text:t};
+ gameRef.update(u);
+}
+
+/* ============ الرسائل الصوتية ============ */
+var rec,chunks=[],cdI,tl=30;
+function startRec(){
+ if(G.turn!==myRole){alert("مش دورك!");return}
+ navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){
+  chunks=[];rec=new MediaRecorder(st);
+  rec.ondataavailable=function(e){chunks.push(e.data)};
+  rec.onstop=function(){
+   var b=new Blob(chunks,{type:rec.mimeType}),r=new FileReader();
+   r.onloadend=function(){
+    var u={};u['messages/'+Date.now()]={sender:myName,type:"voice",audioData:r.result};
+    u.turn=myRole==="player1"?"player2":"player1";gameRef.update(u);
+   };
+   r.readAsDataURL(b);st.getTracks().forEach(function(t){t.stop()});
+  };
+  rec.start();$('mic').classList.add('rec');$('mic').innerText="🔴 بسجّل...";
+  $('stop').style.display="block";$('vt').style.display="block";
+  tl=30;$('vt').innerText=tl+"s";clearInterval(cdI);
+  cdI=setInterval(function(){tl--;$('vt').innerText=tl+"s";if(tl<=0)stopRec()},1000);
+ }).catch(function(e){alert("المايك مش شغال: "+e)});
+}
+function stopRec(){
+ if(rec&&rec.state==="recording"){
+  clearInterval(cdI);rec.stop();
+  $('mic').classList.remove('rec');$('mic').innerText="🎙️ سجّل سؤالك (30 ثانية)";
+  $('stop').style.display="none";$('vt').style.display="none";
+ }
+}
+
+/* ============ مكالمة لايف (WebRTC) ============ */
+var pc=null,ls=null,iceOn=false,ctI,csec=0;
+var RTC={iceServers:[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}]};
+function callUI(s){
+ var bar=$('callbar');bar.classList.toggle('live',s==='active');
+ $('call-btn').classList.toggle('hide',s!=='idle');
+ $('acc-btn').classList.toggle('hide',s!=='incoming');
+ $('mute-btn').classList.toggle('hide',s!=='active');
+ $('end-call-btn').classList.toggle('hide',s==='idle');
+ $('call-st').innerText={idle:"📞 مكالمة لايف",calling:"📞 بيرن عليه...",incoming:"📞 الطرف الآخر بيتصل!",active:"🟢 المكالمة شغالة"}[s];
+ if(s!=='active'){clearInterval(ctI)}
+}
+function newPC(){
+ pc=new RTCPeerConnection(RTC);
+ ls.getTracks().forEach(function(t){pc.addTrack(t,ls)});
+ pc.ontrack=function(e){var a=$('remote-audio');a.srcObject=e.streams[0];a.play().catch(function(){})};
+ pc.onicecandidate=function(e){if(e.candidate)callRef.child('ice/'+myRole).push(e.candidate.toJSON())};
+ pc.onconnectionstatechange=function(){
+  var s=pc&&pc.connectionState;
+  if(s==="connected"){callUI('active');csec=0;clearInterval(ctI);ctI=setInterval(function(){csec++;var m=Math.floor(csec/60),x=csec%60;$('call-st').innerText="🟢 "+m+":"+(x<10?"0":"")+x},1000)}
+  if(s==="failed"){alert("فشل الاتصال، جرّب تاني أو غيّر الشبكة.");endCall(true)}
+ };
+}
+function listenIce(){
+ var o=myRole==="player1"?"player2":"player1";
+ callRef.child('ice/'+o).on('child_added',function(s){if(pc)pc.addIceCandidate(new RTCIceCandidate(s.val())).catch(function(){})});
+}
+function startCall(){
+ if(pc||G.status!=="playing"){if(G.status!=="playing")alert("استنى لما اللاعب التاني يدخل");return}
+ navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}}).then(function(st){
+  ls=st;newPC();
+  return pc.createOffer().then(function(o){return pc.setLocalDescription(o)}).then(function(){
+   return callRef.set({from:myRole,state:"ringing",offer:{type:pc.localDescription.type,sdp:pc.localDescription.sdp}});
+  });
+ }).then(function(){callUI('calling')}).catch(function(e){alert("تعذر بدء المكالمة: "+e);endCall(true)});
+}
+function acceptCall(){
+ callRef.once('value').then(function(s){
+  var d=s.val();if(!d||!d.offer)return;
+  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}}).then(function(st){
+   ls=st;newPC();
+   return pc.setRemoteDescription(d.offer).then(function(){listenIce();return pc.createAnswer()})
+    .then(function(a){return pc.setLocalDescription(a)})
+    .then(function(){return callRef.update({state:"active",answer:{type:pc.localDescription.type,sdp:pc.localDescription.sdp}})});
+  });
+ }).catch(function(e){alert("تعذر الرد: "+e);endCall(true)});
+}
+function onCall(s){
+ var d=s.val();
+ if(!d){if(pc||ls)endCall(false);else callUI('idle');return}
+ if(d.state==="ringing"&&d.from!==myRole&&!pc)callUI('incoming');
+ if(d.state==="active"&&d.from===myRole&&d.answer&&pc&&!pc.remoteDescription&&!iceOn){
+  iceOn=true;pc.setRemoteDescription(d.answer).then(listenIce).catch(function(){});
+ }
+}
+function toggleMute(){
+ if(!ls)return;var t=ls.getAudioTracks()[0];t.enabled=!t.enabled;
+ $('mute-btn').innerText=t.enabled?"🎤":"🔇";
+}
+function endCall(notify){
+ if(pc){try{pc.close()}catch(e){}pc=null}
+ if(ls){ls.getTracks().forEach(function(t){t.stop()});ls=null}
+ try{callRef.child('ice').off()}catch(e){}
+ iceOn=false;$('remote-audio').srcObject=null;$('mute-btn').innerText="🎤";
+ callUI('idle');
+ if(notify)callRef.remove();
+}
+</script>
+</body>
+</html>
